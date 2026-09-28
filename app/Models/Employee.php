@@ -8,10 +8,10 @@ use App\Models\Department;
 class Employee extends Model
 {
     protected $fillable = [
+        'employee_number',
         'first_name',
         'last_name',
         'email',
-        'department',
         'position',
         'department_id'
     ];

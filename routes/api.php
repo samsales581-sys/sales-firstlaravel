@@ -3,24 +3,20 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Models\students;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EmployeeController;
 
 
+// STUDENT ROUTES
 Route::get('/students', function () {
     return response()->json([
         [
             'id' => 1,
             'name' => 'Sales, Samuel Jr. C.',
             'course' => 'BSIT 3B'
-        ],
-        [
-            'id' => 2,
-            'name' => 'Samuel Sales',
-            'course' => 'BSIT 3B'
         ]
     ]);
 });
-
 
 Route::post('/students', function (Request $request) {
     $student = students::create([
@@ -32,12 +28,20 @@ Route::post('/students', function (Request $request) {
 });
 
 
-Route::get('/employees', [EmployeeController::class, 'index']);
+// PUBLIC AUTH ROUTES
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-Route::post('/employees', [EmployeeController::class, 'store']);
 
-Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+// PROTECTED ROUTES
+Route::middleware('auth:sanctum')->group(function () {
 
-Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+    Route::get('/employees', [EmployeeController::class, 'index']);
+    Route::post('/employees', [EmployeeController::class, 'store']);
+    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+    Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+    Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+
+});

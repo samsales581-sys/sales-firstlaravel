@@ -9,54 +9,63 @@ use Illuminate\Http\Request;
 class EmployeeController extends Controller
 {
     /**
-     * Display a listing of employees.
+     * Display employees.
      */
     public function index(Request $request)
     {
-        // Load employees together with their department
+        // Load department relationship
         $query = Employee::with('department');
 
-        // Search employee by first name, last name, or email
+        // Search by employee number, first name, last name, or email
         if ($request->has('search')) {
             $search = $request->search;
 
             $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
+                $q->where('employee_number', 'like', "%{$search}%")
+                  ->orWhere('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        // Filter employees by department
+        // Filter by department
         if ($request->has('department_id')) {
-            $query->where('department_id', $request->department_id);
+            $query->where(
+                'department_id',
+                $request->department_id
+            );
         }
 
-        // Return 10 employees per page
-        return response()->json($query->paginate(10));
+        // 10 employees per page
+        return response()->json(
+            $query->paginate(10)
+        );
     }
 
     /**
-     * Store a newly created employee.
+     * Create employee.
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'employee_number' => 'required|string|max:50|unique:employees,employee_number',
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => 'required|email|unique:employees,email',
-            'department' => 'required|string|max:100',
             'position' => 'required|string|max:100',
             'department_id' => 'required|exists:departments,id',
         ]);
 
         $employee = Employee::create($validated);
 
-        return response()->json($employee, 201);
+        return response()->json(
+            $employee,
+            201
+        );
     }
 
     /**
-     * Display the specified employee.
+     * Show one employee.
      */
     public function show($id)
     {
@@ -72,7 +81,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Update the specified employee.
+     * Update employee.
      */
     public function update(Request $request, $id)
     {
@@ -85,10 +94,10 @@ class EmployeeController extends Controller
         }
 
         $validated = $request->validate([
+            'employee_number' => 'sometimes|string|max:50|unique:employees,employee_number,' . $id,
             'first_name' => 'sometimes|string|max:100',
             'last_name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:employees,email,' . $id,
-            'department' => 'sometimes|string|max:100',
             'position' => 'sometimes|string|max:100',
             'department_id' => 'sometimes|exists:departments,id',
         ]);
@@ -99,7 +108,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Remove the specified employee.
+     * Delete employee.
      */
     public function destroy($id)
     {
