@@ -1,4 +1,8 @@
 <?php
+// Student: Sales, Samuel Jr. C.
+// Section: BSIT 3-B
+
+
 
 namespace App\Http\Controllers\Api;
 
