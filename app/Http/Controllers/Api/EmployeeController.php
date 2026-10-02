@@ -1,5 +1,10 @@
 <?php
 
+// Student: Sales, Samuel Jr. C.
+// Section: BSIT 3-B
+// Project: Employee Service API
+
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
