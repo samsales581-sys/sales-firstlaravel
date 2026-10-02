@@ -11,11 +11,19 @@ class EmployeeResource extends JsonResource
     {
         return [
             'id' => $this->id,
+
+            'department_id' => $this->department_id,
+
             'employee_number' => $this->employee_number,
+
             'first_name' => $this->first_name,
+
             'last_name' => $this->last_name,
+
             'email' => $this->email,
+
             'position' => $this->position,
+
             'employment_status' => $this->employment_status,
 
             'department' => [

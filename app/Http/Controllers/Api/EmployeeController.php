@@ -3,44 +3,81 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class EmployeeController extends Controller
 {
     /**
-     * Display employees.
+     * Display employees with:
+     * - pagination
+     * - search
+     * - department name search
+     * - department filter
+     * - employment status filter
      */
     public function index(Request $request)
     {
+        // Validate query parameters
+        $request->validate([
+            'employment_status' => 'nullable|in:Active,Inactive',
+            'department_id' => 'nullable|exists:departments,id',
+        ]);
+
         // Load department relationship
         $query = Employee::with('department');
 
-        // Search by employee number, first name, last name, or email
-        if ($request->has('search')) {
+        // Search employees
+        if ($request->filled('search')) {
             $search = $request->search;
 
             $query->where(function ($q) use ($search) {
                 $q->where('employee_number', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+
+                    // Search by department name
+                    ->orWhereHas('department', function ($departmentQuery) use ($search) {
+                        $departmentQuery->where(
+                            'name',
+                            'like',
+                            "%{$search}%"
+                        );
+                    });
             });
         }
 
-        // Filter by department
-        if ($request->has('department_id')) {
+        // Filter by department ID
+        if ($request->filled('department_id')) {
             $query->where(
                 'department_id',
                 $request->department_id
             );
         }
 
+        // Filter by employment status
+        if ($request->filled('employment_status')) {
+            $query->where(
+                'employment_status',
+                $request->employment_status
+            );
+        }
+
         // 10 employees per page
-        return response()->json(
-            $query->paginate(10)
-        );
+        $employees = $query
+            ->orderBy('id')
+            ->paginate(10)
+            ->withQueryString();
+
+        return EmployeeResource::collection($employees)
+            ->additional([
+                'message' => 'Employees retrieved successfully'
+            ]);
     }
+
 
     /**
      * Create employee.
@@ -48,21 +85,41 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'employee_number' => 'required|string|max:50|unique:employees,employee_number',
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'email' => 'required|email|unique:employees,email',
-            'position' => 'required|string|max:100',
-            'department_id' => 'required|exists:departments,id',
+            'department_id' =>
+                'required|exists:departments,id',
+
+            'employee_number' =>
+                'required|string|max:30|unique:employees,employee_number',
+
+            'first_name' =>
+                'required|string|max:80',
+
+            'last_name' =>
+                'required|string|max:80',
+
+            'email' =>
+                'required|email|unique:employees,email',
+
+            'position' =>
+                'required|string|max:100',
+
+            'employment_status' =>
+                'required|in:Active,Inactive',
         ]);
 
         $employee = Employee::create($validated);
 
-        return response()->json(
-            $employee,
-            201
-        );
+        // Load department for JSON response
+        $employee->load('department');
+
+        return (new EmployeeResource($employee))
+            ->additional([
+                'message' => 'Employee created successfully'
+            ])
+            ->response()
+            ->setStatusCode(201);
     }
+
 
     /**
      * Show one employee.
@@ -77,8 +134,12 @@ class EmployeeController extends Controller
             ], 404);
         }
 
-        return response()->json($employee);
+        return (new EmployeeResource($employee))
+            ->additional([
+                'message' => 'Employee retrieved successfully'
+            ]);
     }
+
 
     /**
      * Update employee.
@@ -94,18 +155,48 @@ class EmployeeController extends Controller
         }
 
         $validated = $request->validate([
-            'employee_number' => 'sometimes|string|max:50|unique:employees,employee_number,' . $id,
-            'first_name' => 'sometimes|string|max:100',
-            'last_name' => 'sometimes|string|max:100',
-            'email' => 'sometimes|email|unique:employees,email,' . $id,
-            'position' => 'sometimes|string|max:100',
-            'department_id' => 'sometimes|exists:departments,id',
+            'department_id' =>
+                'sometimes|exists:departments,id',
+
+            'employee_number' => [
+                'sometimes',
+                'string',
+                'max:30',
+                Rule::unique('employees', 'employee_number')
+                    ->ignore($employee->id),
+            ],
+
+            'first_name' =>
+                'sometimes|string|max:80',
+
+            'last_name' =>
+                'sometimes|string|max:80',
+
+            'email' => [
+                'sometimes',
+                'email',
+                Rule::unique('employees', 'email')
+                    ->ignore($employee->id),
+            ],
+
+            'position' =>
+                'sometimes|string|max:100',
+
+            'employment_status' =>
+                'sometimes|in:Active,Inactive',
         ]);
 
         $employee->update($validated);
 
-        return response()->json($employee);
+        // Reload updated employee and department
+        $employee->load('department');
+
+        return (new EmployeeResource($employee))
+            ->additional([
+                'message' => 'Employee updated successfully'
+            ]);
     }
+
 
     /**
      * Delete employee.
@@ -124,6 +215,6 @@ class EmployeeController extends Controller
 
         return response()->json([
             'message' => 'Employee deleted successfully'
-        ]);
+        ], 200);
     }
 }
